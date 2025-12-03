@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Usuario;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 
 class AuthController extends Controller
 {
@@ -11,7 +12,7 @@ class AuthController extends Controller
     {
         $usuarios = Usuario::all();
 
-        return response()->json([
+        return new JsonResponse([
             'success' => true,
             'data' => $usuarios
         ], 200);
