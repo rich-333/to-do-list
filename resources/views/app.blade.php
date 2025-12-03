@@ -13,7 +13,26 @@
     'resources/js/Main.jsx'     
   ])
 </head>
-<body class="bg-main-primary box-border">
-  <div id="root"></div>
+</head>
+<body>
+  <main style="font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; padding: 2rem;">
+    <h1>OrganizerAI — Menú</h1>
+    <p>Páginas de depuración (sin estilos):</p>
+    <ul>
+      <li><a href="/organizer">Índice</a></li>
+      <li><a href="/organizer/notas">Notas</a></li>
+      <li><a href="/organizer/tareas">Tareas</a></li>
+      <li><a href="/organizer/eventos">Eventos</a></li>
+    </ul>
+
+    <section style="margin-top: 1.5rem;">
+      <h2>Estado</h2>
+      <ul>
+        <li>API Notes: <code>/api/v1/notes</code> (POST/GET)</li>
+        <li>API Tasks: <code>/api/v1/tasks</code> (POST/GET)</li>
+        <li>API Events: <code>/api/v1/events</code> (POST/GET)</li>
+      </ul>
+    </section>
+  </main>
 </body>
 </html>
