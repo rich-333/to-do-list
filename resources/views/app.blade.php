@@ -13,7 +13,7 @@
     'resources/js/Main.jsx'     
   ])
 </head>
-<body class="bg-main-primary box-border">
+<body class="bg-main-primary box-border bg-black text-white">
   <div id="root"></div>
 </body>
 </html>
