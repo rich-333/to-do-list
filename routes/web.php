@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use App\Models\Note;
 use App\Models\Task;
 use App\Models\Event;
+use App\Http\Controllers\API\NoteController;
 
 Route::get('/', function () {
     $notas = Note::query()->latest()->take(8)->get();
@@ -122,6 +123,15 @@ use App\Http\Controllers\TaskListController;
 Route::middleware('auth')->group(function () {
     // Sugerir items con IA PRIMERO (antes de rutas con parámetros)
     Route::post('/ai/suggest-items', [TaskListController::class, 'suggestItems']);
+
+    // Exponer endpoints IA para la vista de edición de notas usando sesión (auth)
+    // Esto evita la necesidad de llamar a los endpoints API protegidos por Sanctum desde páginas blade.
+    Route::post('/api/v1/notes/{note}/ai/suggest', [NoteController::class, 'suggest']);
+    Route::post('/api/v1/notes/{note}/ai/analyze', [NoteController::class, 'analyze']);
+    Route::post('/api/v1/notes/{note}/ai/expand', [NoteController::class, 'expand']);
+    Route::post('/api/v1/notes/{note}/ai/summarize-content', [NoteController::class, 'summarizeContent']);
+    Route::post('/api/v1/notes/{note}/to-event', [NoteController::class, 'toEvent']);
+    Route::post('/api/v1/notes/{note}/to-task', [NoteController::class, 'toTask']);
 
     // Luego el resto
     Route::get('/task-lists', [TaskListController::class, 'indexJson']);
