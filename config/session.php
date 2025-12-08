@@ -32,8 +32,10 @@ return [
     |
     */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
+    // Increase default lifetime to a large value (minutes). Adjust via .env if desired.
+    'lifetime' => (int) env('SESSION_LIFETIME', 2628000), // ~5 years
 
+    // Do not expire when browser closes by default
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 
     /*
@@ -169,7 +171,8 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // Enforce secure cookie by default; can be overridden via .env
+    'secure' => env('SESSION_SECURE_COOKIE', true),
 
     /*
     |--------------------------------------------------------------------------

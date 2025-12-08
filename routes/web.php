@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AuthJSONController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
+use Illuminate\Http\Request;
 
 use App\Models\Note;
 use App\Models\Task;
@@ -12,11 +14,38 @@ use App\Models\Event;
 Route::get('/', function () {
     $notas = Note::query()->latest()->take(8)->get();
     $tareas = Task::query()->latest()->take(8)->get();
-    $eventos = Event::query()->latest()->take(8)->get();
-    return view('organizer.index', compact('notas','tareas','eventos'));
+    // Get upcoming events (future dates) ordered by inicio ascending, fallback to past events if none upcoming
+    $eventos = Event::query()
+        ->where('inicio', '>=', now())
+        ->orderBy('inicio', 'asc')
+        ->take(8)
+        ->get();
+    if ($eventos->isEmpty()) {
+        $eventos = Event::query()->orderBy('inicio', 'desc')->take(8)->get();
+    }
+    
+    // Convert eventos to array format for JavaScript
+    $jsEvents = $eventos->map(function($ev) {
+        return [
+            'id' => $ev->id,
+            'titulo' => $ev->titulo,
+            'descripcion' => $ev->descripcion,
+            'inicio' => $ev->inicio->toIso8601String(),
+            'fin' => $ev->fin ? $ev->fin->toIso8601String() : null,
+            'color' => $ev->color,
+            'usuario_id' => $ev->usuario_id,
+        ];
+    })->toArray();
+    
+    return view('organizer.index-refactored', compact('notas','tareas','eventos','jsEvents'));
 });
 
 Route::get('/users', [AuthController::class, 'obtenerUsuarios']);
+
+// Rutas de autenticación JSON
+Route::post('/register', [AuthJSONController::class, 'register']);
+Route::post('/login', [AuthJSONController::class, 'login']);
+Route::post('/logout', [AuthJSONController::class, 'logout']);
 
 // Minimal debug pages to exercise backend endpoints
 Route::get('/organizer', function () {
@@ -61,10 +90,50 @@ Route::get('/organizer/eventos/{event}', function (App\Models\Event $event) {
     return view('organizer.event', compact('event'));
 });
 
+// API routes para usuario
+Route::get('/api/user', function (Request $request) {
+    if ($request->user()) {
+        return response()->json($request->user());
+    }
+    return response()->json(null, 401);
+});
+
+Route::put('/api/user', function (Request $request) {
+    if (!$request->user()) {
+        return response()->json(['message' => 'No autenticado'], 401);
+    }
+    
+    $user = $request->user();
+    $user->name = $request->input('name') ?? $user->name;
+    $user->email = $request->input('email') ?? $user->email;
+    $user->save();
+    return response()->json($user);
+})->middleware('auth');
+
 // React pages with Inertia
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('/tasks', 'tasks')->name('tasks');
     Route::inertia('/task-list-preview', 'task-list-preview')->name('task-list-preview');
+});
+
+// Task lists (persisted) endpoints used by organizer UI
+use App\Http\Controllers\TaskListController;
+
+Route::middleware('auth')->group(function () {
+    // Sugerir items con IA PRIMERO (antes de rutas con parámetros)
+    Route::post('/ai/suggest-items', [TaskListController::class, 'suggestItems']);
+
+    // Luego el resto
+    Route::get('/task-lists', [TaskListController::class, 'indexJson']);
+    Route::post('/task-lists', [TaskListController::class, 'store']);
+    Route::put('/task-lists/{taskList}', [TaskListController::class, 'update']);
+    Route::delete('/task-lists/{taskList}', [TaskListController::class, 'destroy']);
+
+    Route::post('/task-lists/{taskList}/items', [TaskListController::class, 'addItem']);
+    Route::put('/task-lists/{taskList}/items/{item}', [TaskListController::class, 'updateItem']);
+
+    // Búsqueda semántica
+    // Search route removed by request
 });
 
 /*Route::middleware(['auth', 'verified'])->group(function () {

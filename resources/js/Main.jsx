@@ -1,9 +1,19 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { App } from "./app";
+import TaskPage from "./pages/TaskPage.jsx";
+import '../css/app.css'
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App/>
-  </React.StrictMode>
-)
+console.log('=== Main.jsx loading ===');
+const root = document.getElementById('root');
+console.log('Root element found:', !!root);
+
+if (root) {
+  console.log('Rendering TaskPage...');
+  ReactDOM.createRoot(root).render(
+    <React.StrictMode>
+      <TaskPage />
+    </React.StrictMode>
+  );
+} else {
+  console.error('No #root element found');
+}

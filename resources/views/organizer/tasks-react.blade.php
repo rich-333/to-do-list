@@ -13,7 +13,9 @@
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-950">
-    <div id="root"></div>
-    @vite(['resources/js/pages/organizer-tasks.tsx'])
+   <div id="root"></div>
+
+@viteReactRefresh
+@vite(['resources/js/main.jsx'])
 </body>
 </html>

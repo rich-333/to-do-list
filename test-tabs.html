@@ -1,0 +1,75 @@
+<!-- Archivo de test para verificar que las pestañas funcionan -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test de Pestañas</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .nav-pill { padding: 10px 15px; margin: 5px; cursor: pointer; border: 2px solid #111; border-radius: 12px; }
+        .nav-pill.active { background: #111; color: white; }
+        .tab-pane { display: none; padding: 20px; border: 1px solid #ddd; margin-top: 10px; }
+        .tab-pane.active { display: block; }
+    </style>
+</head>
+<body>
+
+<h1>Test de Pestañas</h1>
+
+<button class="nav-pill active" onclick="switchTab('notas')">NOTAS</button>
+<button class="nav-pill" onclick="switchTab('tareas')">TAREAS</button>
+<button class="nav-pill" onclick="switchTab('calendario')">CALENDARIO</button>
+
+<div id="tab-notas" class="tab-pane active">
+    <h2>Contenido de Notas</h2>
+    <p>Aquí van las notas</p>
+</div>
+
+<div id="tab-tareas" class="tab-pane">
+    <h2>Contenido de Tareas</h2>
+    <p>Aquí van las tareas</p>
+</div>
+
+<div id="tab-calendario" class="tab-pane">
+    <h2>Contenido de Calendario</h2>
+    <p>Aquí va el calendario</p>
+</div>
+
+<script>
+function switchTab(tab) {
+    console.log('Cambiando a pestaña:', tab);
+    
+    // Ocultar todas las pestañas
+    document.querySelectorAll('.tab-pane').forEach(p => {
+        p.classList.remove('active');
+    });
+    
+    // Desactivar todos los botones
+    document.querySelectorAll('.nav-pill').forEach(p => {
+        p.classList.remove('active');
+    });
+    
+    // Mostrar la pestaña seleccionada
+    const pane = document.getElementById('tab-' + tab);
+    if (pane) {
+        pane.classList.add('active');
+        console.log('✓ Pestaña encontrada y activada');
+    } else {
+        console.error('✗ Pestaña NO encontrada:', 'tab-' + tab);
+    }
+    
+    // Activar el botón correspondiente
+    const buttons = document.querySelectorAll('.nav-pill');
+    const tabIndex = ['notas', 'tareas', 'calendario'].indexOf(tab);
+    if (buttons[tabIndex]) {
+        buttons[tabIndex].classList.add('active');
+    }
+}
+
+console.log('✓ Script de pestañas cargado');
+console.log('✓ Función switchTab disponible');
+</script>
+
+</body>
+</html>

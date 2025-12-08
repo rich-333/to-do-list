@@ -42,10 +42,10 @@
         </ul>
       </div>
 
-      <label for="color">Color (hex)</label>
+      <label for="color">Color</label>
       <div>
-        <input id="color" name="color" type="text" placeholder="#ffeb3b" style="width:110px;" />
-        <span class="color-sample" style="background:#ffeb3b"></span>
+        <input id="color" name="color" type="hidden" />
+        <div id="create-color-palette" style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;"></div>
       </div>
 
       <p style="margin-top:1rem; color:#444; max-width:640px;">Cómo lo procesará el backend: el campo <code>etiquetas</code> se convertirá en un arreglo JSON (ej. <code>["personal","trabajo"]</code>) y el campo <code>color</code> se guardará como cadena (ej. <code>#ffeb3b</code>).</p>
@@ -58,9 +58,21 @@
     <pre id="output"></pre>
 
     <script>
-    (function(){
+      (function(){
       const form = document.getElementById('create-note');
       const out = document.getElementById('output');
+      const COLORS = ['#f8c8dc','#ffd8a8','#fff1a8','#c8f0d6','#c8e7ff','#e1c8ff','#f0e1c8','#d8f0ff'];
+      const palette = document.getElementById('create-color-palette');
+      const hiddenColor = document.getElementById('color');
+      let sel = COLORS[0]; hiddenColor.value = sel;
+      COLORS.forEach(c => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.style.width='36px'; b.style.height='36px'; b.style.borderRadius='6px'; b.style.border='2px solid transparent'; b.style.background = c; b.style.cursor = 'pointer';
+        b.addEventListener('click', () => { sel = c; hiddenColor.value = c; palette.querySelectorAll('button').forEach(x=>x.style.borderColor='transparent'); b.style.borderColor='#111'; });
+        if (c === sel) b.style.borderColor = '#111';
+        palette.appendChild(b);
+      });
+
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         out.textContent = 'Enviando...';
@@ -72,7 +84,7 @@
             titulo: fd.get('titulo'),
             contenido: fd.get('contenido'),
             etiquetas: etiquetas,
-            color: fd.get('color') || null,
+            color: hiddenColor.value || null,
             usuario_id: 1
           };
 

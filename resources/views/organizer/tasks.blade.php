@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>OrganizerAI - Tareas</title>
     @viteReactRefresh
-    @vite(['resources/css/app.css', 'resources/js/Main.jsx'])
+    @vite(['resources/js/Main.jsx'])
   </head>
   <body class="bg-gray-100 dark:bg-gray-950">
     <div id="root"></div>

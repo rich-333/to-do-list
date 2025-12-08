@@ -10,7 +10,8 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/js/Main.jsx',
-                'resources/js/App.jsx'
+                'resources/js/App.jsx',
+                'resources/js/pages/user-menu.jsx'
             ],
             ssr: 'resources/js/ssr.tsx',
             refresh: true,
