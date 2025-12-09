@@ -16,11 +16,20 @@ class TaskList extends Model
 
     protected $fillable = [
         'title',
+        'context',
         'user_id',
     ];
 
     public function items()
     {
         return $this->hasMany(TaskListItem::class)->orderBy('order');
+    }
+
+    protected static function booted()
+    {
+        // Ensure items are deleted when a list is deleted (defensive: DB may not enforce FK cascades in some environments)
+        static::deleting(function (TaskList $list) {
+            $list->items()->delete();
+        });
     }
 }

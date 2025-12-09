@@ -65,7 +65,7 @@
         </div>
         <button id="add-subtask" type="button">Añadir subtarea</button>
 
-        <p style="margin-top:0.75rem"><button type="submit">Guardar</button> <a href="/">Volver</a></p>
+        <p style="margin-top:0.75rem"><button type="submit">Guardar</button> <a href="/">Volver</a> <button id="delete-task" type="button" style="background:#e53935; color:white; border:none; padding:0.35rem 0.6rem; border-radius:6px; margin-left:8px">🗑️ Eliminar</button></p>
       </form>
 
       <pre id="output"></pre>
@@ -96,6 +96,20 @@
           const text = await res.text(); let data; try{data=JSON.parse(text)}catch(e){data=text}
           out.textContent = 'HTTP '+res.status+'\n'+JSON.stringify(data,null,2);
         }catch(err){ out.textContent='Error: '+(err.message||err); console.error(err) }
+      });
+
+      // Delete task
+      document.getElementById('delete-task')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (!confirm('¿Eliminar esta tarea?')) return;
+        try {
+          const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+          const res = await fetch('/api/v1/tasks/{{ $task->id }}', { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } });
+          if (res.ok) window.location.href = '/';
+          else {
+            const txt = await res.text(); alert('Error eliminando tarea: ' + (txt || res.statusText));
+          }
+        } catch (err) { console.error(err); alert('Error eliminando tarea'); }
       });
 
       document.getElementById('add-subtask').addEventListener('click', function(){

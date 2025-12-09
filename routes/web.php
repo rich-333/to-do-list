@@ -132,6 +132,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/v1/notes/{note}/ai/summarize-content', [NoteController::class, 'summarizeContent']);
     Route::post('/api/v1/notes/{note}/to-event', [NoteController::class, 'toEvent']);
     Route::post('/api/v1/notes/{note}/to-task', [NoteController::class, 'toTask']);
+    // Eliminaciones para vistas con sesión
+    Route::delete('/api/v1/notes/{note}', [NoteController::class, 'destroy']);
+    Route::delete('/api/v1/tasks/{task}', [\App\Http\Controllers\API\TaskController::class, 'destroy']);
+    Route::delete('/api/v1/events/{event}', [\App\Http\Controllers\API\EventController::class, 'destroy']);
+    Route::post('/api/v1/events', [\App\Http\Controllers\API\EventController::class, 'store']);
+    // TaskList item delete
+    Route::delete('/task-lists/{taskList}/items/{item}', [TaskListController::class, 'destroyItem']);
 
     // Luego el resto
     Route::get('/task-lists', [TaskListController::class, 'indexJson']);
@@ -141,6 +148,29 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/task-lists/{taskList}/items', [TaskListController::class, 'addItem']);
     Route::put('/task-lists/{taskList}/items/{item}', [TaskListController::class, 'updateItem']);
+
+    // Dev helper: send a test reminder email to the authenticated user
+    Route::get('/dev/send-test-email', function (\Illuminate\Http\Request $request) {
+        $user = $request->user();
+        if (! $user) return response()->json(['message' => 'No autenticado'], 401);
+
+        // Create a lightweight Event instance for the email (not persisted)
+        $event = new \App\Models\Event([
+            'titulo' => 'Prueba de recordatorio',
+            'descripcion' => 'Este es un email de prueba enviado desde /dev/send-test-email',
+            'inicio' => \Illuminate\Support\Carbon::now()->addMinutes(10),
+            'ubicacion' => 'Online'
+        ]);
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\EventReminderMail($event));
+        } catch (\Throwable $ex) {
+            \Log::error('Error sending test reminder: ' . $ex->getMessage());
+            return response()->json(['sent' => false, 'error' => $ex->getMessage()], 500);
+        }
+
+        return response()->json(['sent' => true]);
+    })->name('dev.send_test_email');
 
     // Búsqueda semántica
     // Search route removed by request

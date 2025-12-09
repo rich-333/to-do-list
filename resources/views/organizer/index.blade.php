@@ -482,7 +482,7 @@
         try {
           let payload = {};
           let url = '';
-          if (tab === 'notes') {
+            if (tab === 'notes') {
             payload.titulo = document.getElementById('qa-title').value || 'Nota rápida';
             payload.contenido = document.getElementById('qa-content').value || '';
             payload.color = qaSelectedColor || null;
@@ -496,15 +496,17 @@
             const dt = document.getElementById('qa-datetime').value;
             if (dt) payload.inicio = dt;
             payload.descripcion = document.getElementById('qa-content') ? document.getElementById('qa-content').value : '';
-            payload.usuario_id = 1;
+              // Do not hard-code `usuario_id` here; backend will use the authenticated session's user id.
             url = '/api/v1/events';
           }
 
           const res = await fetch(url, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
               'Content-Type': 'application/json',
-              'X-CSRF-TOKEN': token
+              'X-CSRF-TOKEN': token,
+              'Accept': 'application/json'
             },
             body: JSON.stringify(payload)
           });
@@ -967,6 +969,23 @@
               const editBtn = document.createElement('button'); editBtn.textContent = 'Editar'; editBtn.style.marginRight='8px'; editBtn.style.cursor='pointer';
               editBtn.addEventListener('click', () => openListModal(list));
               actions.appendChild(editBtn);
+              const delBtn = document.createElement('button'); delBtn.textContent = 'Eliminar'; delBtn.style.cursor='pointer'; delBtn.style.background='#e53935'; delBtn.style.color='white'; delBtn.style.border='none'; delBtn.style.padding='6px 8px'; delBtn.style.borderRadius='6px';
+              delBtn.addEventListener('click', async () => {
+                if (!confirm('¿Eliminar esta lista? Esta acción eliminará todos sus items.')) return;
+                try {
+                  const res = await fetch(`/task-lists/${list.id}`, { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } });
+                  if (!res.ok) {
+                    const txt = await res.text();
+                    throw new Error(txt || res.statusText);
+                  }
+                  // eliminar del DOM
+                  el.remove();
+                } catch (err) {
+                  console.error('Error eliminando lista:', err);
+                  alert('Error eliminando lista: ' + (err.message || err));
+                }
+              });
+              actions.appendChild(delBtn);
               title.appendChild(actions);
               el.appendChild(title);
 
@@ -1001,6 +1020,10 @@
                 ul.appendChild(li);
               });
               el.appendChild(ul);
+              if (list.context) {
+                const ctx = document.createElement('div'); ctx.style.marginTop='8px'; ctx.style.color='#666'; ctx.style.fontSize='0.95em'; ctx.textContent = list.context;
+                el.appendChild(ctx);
+              }
               listsContainer.appendChild(el);
             });
           }
@@ -1012,11 +1035,17 @@
             modalHtml.style.position='fixed'; modalHtml.style.left=0; modalHtml.style.top=0; modalHtml.style.right=0; modalHtml.style.bottom=0; modalHtml.style.background='rgba(0,0,0,0.4)'; modalHtml.style.display='flex'; modalHtml.style.alignItems='center'; modalHtml.style.justifyContent='center'; modalHtml.style.zIndex=3000;
             const box = document.createElement('div'); box.style.background='white'; box.style.padding='20px'; box.style.borderRadius='8px'; box.style.width='480px'; box.style.maxWidth='94%';
 
-            box.innerHTML = `
+              box.innerHTML = `
               <h3 style="margin-top:0">${isEdit ? 'Editar lista' : 'Nueva lista'}</h3>
               <div style="margin-bottom:8px;"><label style="font-weight:600; display:block; margin-bottom:6px">Título</label><input id="list-title-input" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px" value="${isEdit ? escapeHtml(list.title) : ''}"></div>
+              <div style="margin-bottom:8px;"><label style="font-weight:600; display:block; margin-bottom:6px">Contexto (opcional)</label><textarea id="list-context-input" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; min-height:80px">${isEdit ? escapeHtml(list.context || '') : ''}</textarea></div>
               <div id="items-area" style="max-height:300px; overflow:auto; margin-bottom:8px"></div>
-              <div style="display:flex; gap:8px; justify-content:flex-end;"><button id="add-item-btn" style="padding:8px 10px">+ Item</button><button id="save-list-btn" style="background:#0b74de; color:white; padding:8px 12px; border:none; border-radius:6px">Guardar</button><button id="close-list-btn" style="padding:8px 10px">Cancelar</button></div>
+              <div style="display:flex; gap:8px; justify-content:flex-end;">
+                ${isEdit ? '<button id="delete-list-btn" style="background:#e53935; color:white; border:none; padding:8px 12px; border-radius:6px">Eliminar lista</button>' : ''}
+                <button id="add-item-btn" style="padding:8px 10px">+ Item</button>
+                <button id="save-list-btn" style="background:#0b74de; color:white; padding:8px 12px; border:none; border-radius:6px">Guardar</button>
+                <button id="close-list-btn" style="padding:8px 10px">Cancelar</button>
+              </div>
             `;
 
             modalHtml.appendChild(box);
@@ -1034,7 +1063,22 @@
               const input = document.createElement('input'); input.type='text'; input.value = item?.name || '';
               input.style.flex='1'; input.style.padding='8px'; input.style.border='1px solid #ddd'; input.style.borderRadius='6px';
               const rem = document.createElement('button'); rem.textContent='Eliminar'; rem.style.padding='6px 8px'; rem.style.cursor='pointer';
-              rem.addEventListener('click', () => row.remove());
+              rem.addEventListener('click', async () => {
+                // Si el item ya existe en el servidor (tiene id), llamar DELETE, si no, simplemente eliminar del DOM
+                if (row.dataset.itemId) {
+                  try {
+                    const itemId = row.dataset.itemId;
+                      const res = await fetch(`/task-lists/${list.id}/items/${itemId}`, { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } });
+                    if (!res.ok) throw new Error('Error eliminando item');
+                    row.remove();
+                  } catch (err) {
+                    console.error('No se pudo eliminar item:', err);
+                    alert('Error eliminando item');
+                  }
+                } else {
+                  row.remove();
+                }
+              });
               if (item && item.id) row.dataset.itemId = item.id;
               row.appendChild(cb); row.appendChild(input); row.appendChild(rem);
               itemsArea.appendChild(row);
@@ -1053,17 +1097,18 @@
 
             saveBtn.addEventListener('click', async () => {
               const title = box.querySelector('#list-title-input').value.trim();
+              const context = box.querySelector('#list-context-input')?.value.trim() || '';
               if (!title) { alert('El título es obligatorio'); return; }
               const rows = Array.from(itemsArea.children);
               const items = rows.map(r => ({ id: r.dataset.itemId, name: r.querySelector('input[type=text]').value.trim(), completed: r.querySelector('input[type=checkbox]').checked } )).filter(x => x.name.length>0);
 
               try {
                 if (!isEdit) {
-                  const res = await fetch('/task-lists', { method: 'POST', headers: { 'Content-Type':'application/json','X-CSRF-TOKEN': csrf }, body: JSON.stringify({ title, items }) });
+                  const res = await fetch('/task-lists', { method: 'POST', headers: { 'Content-Type':'application/json','X-CSRF-TOKEN': csrf }, body: JSON.stringify({ title, context, items }) });
                   if (!res.ok) throw new Error('Error creando');
                 } else {
                   // update title
-                  await fetch(`/task-lists/${list.id}`, { method: 'PUT', headers: { 'Content-Type':'application/json','X-CSRF-TOKEN': csrf }, body: JSON.stringify({ title }) });
+                  await fetch(`/task-lists/${list.id}`, { method: 'PUT', headers: { 'Content-Type':'application/json','X-CSRF-TOKEN': csrf }, body: JSON.stringify({ title, context }) });
                   // update or create items
                   for (const it of items) {
                     if (it.id) {
@@ -1077,6 +1122,27 @@
                 await loadLists();
               } catch(e){ console.error(e); alert('Error al guardar'); }
             });
+
+            // botón eliminar (sólo en modo edición)
+            const deleteBtn = box.querySelector('#delete-list-btn');
+            if (deleteBtn) {
+              deleteBtn.addEventListener('click', async (ev) => {
+                ev.preventDefault();
+                if (!confirm('¿Eliminar esta lista y todos sus items? Esta acción no se puede deshacer.')) return;
+                try {
+                  const res = await fetch(`/task-lists/${list.id}`, { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } });
+                  if (!res.ok) {
+                    const txt = await res.text();
+                    throw new Error(txt || res.statusText);
+                  }
+                  container.innerHTML = '';
+                  await loadLists();
+                } catch (err) {
+                  console.error('Error eliminando lista desde modal:', err);
+                  alert('Error eliminando lista: ' + (err.message || err));
+                }
+              });
+            }
           }
 
           function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }

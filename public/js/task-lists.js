@@ -145,12 +145,12 @@
     box.innerHTML = `
       <h3 style="margin-top:0">${isEdit ? 'Editar lista' : 'Nueva lista'}</h3>
       <div style="margin-bottom:8px;"><label style="font-weight:600; display:block; margin-bottom:6px">Título</label><input id="list-title-input" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px" value="${isEdit ? escapeHtml(list.title) : ''}"></div>
-      <div style="margin-bottom:8px;"><label style="font-weight:600; display:block; margin-bottom:6px">Contexto (opcional, ej: "Cena mexicana")</label><input id="list-context-input" placeholder="Usa esto para sugerencias más específicas" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px"></div>
+      <div style="margin-bottom:8px;"><label style="font-weight:600; display:block; margin-bottom:6px">Contexto (opcional, ej: \"Cena mexicana\")</label><input id="list-context-input" placeholder="Usa esto para sugerencias más específicas" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px" value="${isEdit ? escapeHtml(list.context || '') : ''}"></div>
       <div style="margin-bottom:8px;"><label style="font-weight:600; display:block; margin-bottom:6px">Proveedor IA</label><select id="ai-provider" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px"><option value="groq">Groq (recomendado)</option><option value="deepseek">Deepseek</option><option value="gemini">Gemini</option></select>
         <div style="margin-top:6px"><span id="ai-provider-badge" style="display:inline-block;padding:4px 8px;border-radius:12px;background:#eef;color:#124;font-size:12px;font-weight:600">IA: -</span></div>
       </div>
       <div id="items-area" style="max-height:300px; overflow:auto; margin-bottom:8px"></div>
-      <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;"><button id="add-item-btn" style="padding:8px 10px">+ Item</button><button id="suggest-items-btn" style="padding:8px 10px; background:#ff9800; color:white; border:none; border-radius:6px; cursor:pointer;">🤖 Sugerir con IA</button><button id="save-list-btn" style="background:#0b74de; color:white; padding:8px 12px; border:none; border-radius:6px">Guardar</button><button id="close-list-btn" style="padding:8px 10px">Cancelar</button></div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">${isEdit ? '<button id="delete-list-btn" style="background:#e53935; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;">Eliminar lista</button>' : ''}<button id="add-item-btn" style="padding:8px 10px">+ Item</button><button id="suggest-items-btn" style="padding:8px 10px; background:#ff9800; color:white; border:none; border-radius:6px; cursor:pointer;">🤖 Sugerir con IA</button><button id="save-list-btn" style="background:#0b74de; color:white; padding:8px 12px; border:none; border-radius:6px">Guardar</button><button id="close-list-btn" style="padding:8px 10px">Cancelar</button></div>
     `;
 
     modalHtml.appendChild(box);
@@ -242,17 +242,18 @@
 
     saveBtn.addEventListener('click', async () => {
       const title = box.querySelector('#list-title-input').value.trim();
+      const context = box.querySelector('#list-context-input')?.value.trim() || '';
       if (!title) { alert('El título es obligatorio'); return; }
       const rows = Array.from(itemsArea.children);
       const items = rows.map(r => ({ id: r.dataset.itemId, name: r.querySelector('input[type=text]').value.trim(), completed: r.querySelector('input[type=checkbox]').checked } )).filter(x => x.name.length>0);
 
       try {
         if (!isEdit) {
-          const res = await fetch('/task-lists', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN': csrf }, body: JSON.stringify({ title, items }) });
+          const res = await fetch('/task-lists', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN': csrf }, body: JSON.stringify({ title, context, items }) });
           if (!res.ok) throw new Error('Error creando');
         } else {
           // update title
-          await fetch(`/task-lists/${list.id}`, { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN': csrf }, body: JSON.stringify({ title }) });
+          await fetch(`/task-lists/${list.id}`, { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN': csrf }, body: JSON.stringify({ title, context }) });
           // update or create items
           for (const it of items) {
             if (it.id) {
@@ -266,6 +267,27 @@
         await loadLists();
       } catch(e){ console.error(e); alert('Error al guardar'); }
     });
+
+    // Attach delete handler when editing
+    const deleteBtn = box.querySelector('#delete-list-btn');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        if (!confirm('¿Eliminar esta lista y todos sus items? Esta acción no se puede deshacer.')) return;
+        try {
+          const res = await fetch(`/task-lists/${list.id}`, { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } });
+          if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(txt || res.statusText);
+          }
+          container.innerHTML = '';
+          await loadLists();
+        } catch (err) {
+          console.error('Error eliminando lista desde modal:', err);
+          alert('Error eliminando lista: ' + (err.message || err));
+        }
+      });
+    }
   }
 
   function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }

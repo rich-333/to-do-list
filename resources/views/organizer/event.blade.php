@@ -2,6 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Editar Evento</title>
     <style>
       body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial; background:#f7f9fb; color:#111 }
@@ -33,7 +34,7 @@
         <label>Fecha recordatorio</label>
         <input id="fecha_recordatorio" type="datetime-local" value="{{ optional($event->fecha_recordatorio)->format('Y-m-d\TH:i') }}" />
 
-        <p style="margin-top:0.75rem"><button type="submit">Guardar</button> <a href="/">Volver</a></p>
+        <p style="margin-top:0.75rem"><button type="submit">Guardar</button> <a href="/">Volver</a> <button id="delete-event" type="button" style="background:#e53935; color:white; border:none; padding:0.35rem 0.6rem; border-radius:6px; margin-left:8px">🗑️ Eliminar</button></p>
       </form>
 
       <pre id="output"></pre>
@@ -52,10 +53,39 @@
           ubicacion: document.getElementById('ubicacion').value,
           fecha_recordatorio: toIso(document.getElementById('fecha_recordatorio').value)
         };
-        const res = await fetch('/api/v1/events/{{ $event->id }}', { method: 'PUT', headers:{'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify(payload)});
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const res = await fetch('/api/v1/events/{{ $event->id }}', { method: 'PUT', credentials: 'same-origin', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN': csrf}, body: JSON.stringify(payload)});
         const text = await res.text(); let data; try{data=JSON.parse(text)}catch(e){data=text}
         out.textContent = 'HTTP '+res.status+'\n'+JSON.stringify(data,null,2);
       }catch(err){ out.textContent='Error: '+(err.message||err); console.error(err) } });
+      
+      // Delete event
+      document.getElementById('delete-event')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (!confirm('¿Eliminar este evento?')) return;
+        try {
+          const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+          const res = await fetch('/api/v1/events/{{ $event->id }}', { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } });
+          if (res.ok) {
+            window.location.href = '/';
+            return;
+          }
+
+          // Attempt to parse JSON error body for a clearer message
+          let bodyText = await res.text();
+          let body = null;
+          try { body = JSON.parse(bodyText); } catch(e) { body = null; }
+
+          const serverMsg = body && body.message ? body.message : (bodyText || res.statusText || 'Error desconocido');
+          const detail = body && Object.keys(body).length ? JSON.stringify(body, null, 2) : bodyText;
+
+          const alertMsg = `Error eliminando evento (HTTP ${res.status}): ${serverMsg}\n\nRespuesta completa:\n${detail}`;
+          console.error('DELETE /api/v1/events/{{ $event->id }}', { status: res.status, body: body || bodyText });
+          alert(alertMsg);
+          // also show in the page output area for easier copying
+          out.textContent = alertMsg;
+        } catch (err) { console.error(err); alert('Error eliminando evento: ' + (err.message || err)); }
+      });
     })();
     </script>
   </body>

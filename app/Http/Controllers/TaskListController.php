@@ -26,6 +26,7 @@ class TaskListController extends Controller
     {
         $data = $request->validate([
             'title' => 'required|string|max:255',
+            'context' => 'sometimes|string|max:1000',
             'items' => 'sometimes|array',
             'items.*.name' => 'required|string|max:255',
             'items.*.completed' => 'sometimes|boolean',
@@ -33,6 +34,7 @@ class TaskListController extends Controller
 
         $list = TaskList::create([
             'title' => $data['title'],
+            'context' => $data['context'] ?? null,
             'user_id' => Auth::id(),
         ]);
 
@@ -55,8 +57,11 @@ class TaskListController extends Controller
     public function update(Request $request, TaskList $taskList)
     {
         $this->authorizeOwnership($taskList);
-        $data = $request->validate(['title' => 'required|string|max:255']);
-        $taskList->update(['title' => $data['title']]);
+        $data = $request->validate([
+            'title' => 'required|string|max:255',
+            'context' => 'sometimes|string|max:1000',
+        ]);
+        $taskList->update(['title' => $data['title'], 'context' => $data['context'] ?? null]);
         return response()->json($taskList);
     }
 
@@ -89,9 +94,31 @@ class TaskListController extends Controller
 
     public function destroy(TaskList $taskList)
     {
+        try {
+            \Log::info('[TaskListController@destroy] Attempt', ['user_id' => Auth::id(), 'task_list_id' => $taskList->id]);
+            $this->authorizeOwnership($taskList);
+            $taskList->delete();
+            \Log::info('[TaskListController@destroy] Success', ['user_id' => Auth::id(), 'task_list_id' => $taskList->id]);
+            return response()->json(['message' => 'Deleted']);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            // authorization abort(403) will be caught here
+            \Log::warning('[TaskListController@destroy] Authorization failed', ['user_id' => Auth::id(), 'task_list_id' => $taskList->id]);
+            return response()->json(['message' => 'Forbidden'], 403);
+        } catch (\Exception $e) {
+            \Log::error('[TaskListController@destroy] Exception: ' . $e->getMessage(), ['user_id' => Auth::id(), 'task_list_id' => $taskList->id]);
+            return response()->json(['message' => 'Error deleting list', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    // Delete a specific item from a task list
+    public function destroyItem(TaskList $taskList, TaskListItem $item)
+    {
         $this->authorizeOwnership($taskList);
-        $taskList->delete();
-        return response()->json(['message' => 'Deleted']);
+        if ($item->task_list_id !== $taskList->id) {
+            return response()->json(['message' => 'Item no pertenece a la lista'], 403);
+        }
+        $item->delete();
+        return response()->json(['message' => 'Item eliminado']);
     }
 
     protected function authorizeOwnership(TaskList $taskList)

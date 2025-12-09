@@ -134,6 +134,68 @@
     if (typeof populateEventsMap === 'function') {
       populateEventsMap(SERVER_EVENTS);
     }
+
+    // Build EVENTS_BY_DATE map from SERVER_EVENTS for modal filtering
+    if (typeof window.EVENTS_BY_DATE === 'undefined') {
+      window.EVENTS_BY_DATE = {};
+    }
+    SERVER_EVENTS.forEach(ev => {
+      if (!ev.inicio) return;
+      const d = new Date(ev.inicio);
+      const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      if (!window.EVENTS_BY_DATE[key]) window.EVENTS_BY_DATE[key] = [];
+      window.EVENTS_BY_DATE[key].push(ev);
+    });
+
+    // Function to open day events modal with events filtered by date
+    function openDayEventsModal(year, month, day) {
+      console.log('[openDayEventsModal] Called with:', { year, month, day });
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      console.log('[openDayEventsModal] dateStr:', dateStr);
+      const events = window.EVENTS_BY_DATE[dateStr] || [];
+      console.log('[openDayEventsModal] events found:', events.length);
+      // Sort by time
+      events.sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime());
+      
+      const container = document.getElementById('day-events-modal-container');
+      let eventsHtml = events.map(ev => {
+        const startTime = new Date(ev.inicio).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        const color = ev.color || '#c8e7ff';
+        return `
+          <div style="padding: 12px; margin-bottom: 8px; border-left: 4px solid ${color}; background: #f9f9f9; border-radius: 4px;">
+            <div style="font-weight: 600; color: #333;">
+              <a href="/organizer/eventos/${ev.id || ''}" style="text-decoration: none; color: #333; cursor: pointer;">${ev.titulo || 'Sin título'}</a>
+            </div>
+            <div style="font-size: 13px; color: #666; margin-top: 4px;">🕒 ${startTime}</div>
+          </div>
+        `;
+      }).join('');
+      
+      // Pre-fill datetime with the selected date at 09:00
+      const prefilledDateTime = `${dateStr}T09:00`;
+      
+      // Get month name in Spanish
+      const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      const monthName = monthNames[month - 1] || month;
+      console.log('[openDayEventsModal] monthName:', monthName, 'from index:', month - 1);
+      
+      container.innerHTML = `
+        <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2000;">
+          <div style="background: white; border-radius: 8px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <h2 style="margin-top: 0; margin-bottom: 16px; color: #333;">Eventos del ${day} de ${monthName} de ${year}</h2>
+            <div style="margin-bottom: 24px; min-height: 100px;">
+              ${eventsHtml || '<div style="color: #999; text-align: center; padding: 32px;">No hay eventos este día</div>'}
+            </div>
+            <button onclick="closeDayEventsModal(); renderQuickAddModal('calendar', '${prefilledDateTime}');" style="width: 100%; padding: 10px; background: #4a8f3a; color: white; border: none; border-radius: 4px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 8px;">+ Agregar evento</button>
+            <button onclick="closeDayEventsModal()" style="width: 100%; padding: 10px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; font-size: 14px; cursor: pointer;">Cerrar</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function closeDayEventsModal() {
+      document.getElementById('day-events-modal-container').innerHTML = '';
+    }
     
     (function(){
       // Calendar state
@@ -215,6 +277,12 @@
             b.style.background = ev.color || '#f0f6ff';
             b.textContent = ev.titulo || '';
             cell.appendChild(b);
+          });
+
+          // Add click listener to open day modal
+          cell.addEventListener('click', function(e) {
+            if (e.target.tagName === 'A' || e.target.closest('a')) return; // Don't open if clicking event link
+            openDayEventsModal(year, month + 1, day); // month + 1 because JS months are 0-11
           });
 
           root.appendChild(cell);

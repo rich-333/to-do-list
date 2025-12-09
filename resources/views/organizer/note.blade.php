@@ -40,6 +40,7 @@
         <p style="margin-top:0.25rem">
           <button id="analyze-btn" type="button" style="background:#9c27b0; color:white; border:none; padding:0.45rem 0.75rem; border-radius:6px;">🔍 Analizar con IA</button>
           <button id="suggest-ia" type="button" style="background:#ff9800; border:none; padding:0.45rem 0.75rem; border-radius:6px; margin-left:8px;">🤖 Sugerir con IA</button>
+          <button id="delete-note" type="button" style="background:#e53935; color:white; border:none; padding:0.45rem 0.75rem; border-radius:6px; margin-left:8px;">🗑️ Eliminar</button>
           <span id="ia-note-msg" style="margin-left:12px;color:#666"></span>
         </p>
       </form>
@@ -293,6 +294,25 @@
           aiStatus.textContent = '❌ ' + (err.message || err);
         }
       }
+
+      // Delete note
+      document.getElementById('delete-note')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (!confirm('¿Eliminar esta nota? Esta acción no se puede deshacer.')) return;
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        try {
+          const res = await fetch('/api/v1/notes/{{ $note->id }}', { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } });
+          if (res.ok) {
+            window.location.href = '/';
+          } else {
+            const txt = await res.text();
+            alert('Error eliminando nota: ' + (txt || res.statusText));
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Error eliminando nota: ' + (err.message || err));
+        }
+      });
     })();
     </script>
   </body>
